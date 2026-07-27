@@ -28,8 +28,10 @@ nav{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);background:rgba(
 .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;max-width:1180px;margin:0 auto;}
 .brand{font-weight:600;font-size:16px;display:flex;align-items:center;gap:10px;}
 .brand img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid var(--line);}
-.nav-links{display:flex;gap:28px;font-size:14px;color:var(--muted);}
+.nav-links{display:flex;align-items:center;gap:22px;font-size:14px;color:var(--muted);}
 .nav-links a:hover{color:var(--text);}
+.lang-toggle{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:100px;padding:6px 14px;font-size:12.5px;font-weight:500;}
+.lang-toggle:hover{color:var(--text);border-color:rgba(255,255,255,.25);}
 .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--muted);font-weight:500;}
 .hero{position:relative;z-index:1;padding:96px 0 60px;}
 .hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;}
@@ -129,7 +131,31 @@ footer{position:relative;z-index:1;text-align:center;padding:30px 0 50px;color:v
 .drive-grid .d-item img{width:100%;height:100%;object-fit:cover;}
 .drive-grid .d-item.selected{outline:2px solid var(--accent2);}
 .spinner-text{color:var(--muted);font-size:13px;}
-@media(max-width:640px){
+@media(max-width:768px){
+  .wrap{padding:0 20px;}
+  .nav-inner{padding:14px 20px;}
+  .nav-links{gap:14px;font-size:13px;}
+  .hero{padding:64px 0 40px;}
+  .hero-top{flex-direction:column;align-items:flex-start;gap:12px;}
+  .hero h1{font-size:clamp(28px,8vw,44px);}
+  .btn-row{flex-direction:column;align-items:stretch;}
+  .btn{justify-content:center;}
+  .grid{grid-template-columns:1fr;}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:24px;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{flex-shrink:0;}
+  .chips{gap:8px;}
+  .section-head{flex-direction:column;align-items:flex-start;}
+  .slider{aspect-ratio:4/3;}
+  .modal{padding:22px;max-height:92vh;}
+  .pd-gallery img{height:150px;}
   .contact-box{padding:26px;}
   .admin-body{padding:24px 16px 80px;}
+}
+@media(max-width:420px){
+  .wrap{padding:0 16px;}
+  .nav-links{gap:10px;font-size:12px;}
+  .brand span{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .hero-bio{font-size:14px;}
+  .lang-toggle{padding:5px 11px;font-size:11.5px;}
 }
