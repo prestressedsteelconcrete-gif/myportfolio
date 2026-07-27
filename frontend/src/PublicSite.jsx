@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from './api.js';
-import { useLanguage } from './i18n.js';
+import { useLanguage } from './i18n.jsx';
 
 // Priority order for segments/projects: 3D Modeling first, then
 // Architectural, then Structural, then anything else in its original order.
