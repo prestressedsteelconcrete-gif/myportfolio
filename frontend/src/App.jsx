@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PublicSite from './PublicSite.jsx';
 import AdminGate from './Admin.jsx';
 import { ToastProvider } from './ToastContext.jsx';
-import { LanguageProvider } from './i18n.js';
+import { LanguageProvider } from './i18n.jsx';
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
