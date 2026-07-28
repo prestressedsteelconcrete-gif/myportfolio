@@ -337,11 +337,23 @@ function DriveTab() {
   useEffect(() => { refresh(); }, []);
 
   async function connect() {
+    // Open the tab immediately (still inside the click's user-gesture
+    // context) so browser popup blockers don't silently block it once
+    // we await the API call below.
+    const popup = window.open('', '_blank', 'noopener');
     try {
       const { url } = await api.driveAuthUrl();
-      window.open(url, '_blank', 'noopener');
-      toast('নতুন ট্যাবে Google অনুমতি দিয়ে ফিরে এসে এখানে রিফ্রেশ করো');
-    } catch (e) { toast(e.message); }
+      if (popup) {
+        popup.location.href = url;
+        toast('নতুন ট্যাবে Google অনুমতি দিয়ে ফিরে এসে এখানে রিফ্রেশ করো');
+      } else {
+        // Popup was blocked despite opening synchronously (strict blocker).
+        toast('ব্রাউজার popup ব্লক করেছে — অ্যাড্রেস বারে popup-blocked আইকনে ক্লিক করে অনুমতি দাও, তারপর আবার চাপ দাও');
+      }
+    } catch (e) {
+      if (popup) popup.close();
+      toast(e.message);
+    }
   }
 
   return (
