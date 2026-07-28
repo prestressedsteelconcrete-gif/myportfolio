@@ -1,60 +1,78 @@
-import express from 'express';
-import multer from 'multer';
-import { requireAdmin } from '../auth.js';
-import { getAuthUrl, handleOAuthCallback, listDriveFiles, uploadToDrive, deleteFromDrive } from '../googleDrive.js';
-import { readDb } from '../db.js';
+import { google } from 'googleapis';
+import { Readable } from 'stream';
+import { readDb, writeDb } from './db.js';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
-const router = express.Router();
+export function getOAuthClient() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+}
 
-router.get('/status', requireAdmin, (req, res) => {
+export function getAuthUrl() {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    throw new Error('Google Cloud Console থেকে Client ID এবং Client Secret তৈরি করে backend/.env ফাইলে বসাতে হবে।');
+  }
+  const oauth2Client = getOAuthClient();
+  return oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/drive.file']
+  });
+}
+
+export async function handleOAuthCallback(code) {
+  const oauth2Client = getOAuthClient();
+  const { tokens } = await oauth2Client.getToken(code);
   const db = readDb();
-  res.json({ connected: !!db.google.refreshToken });
-});
+  db.google.refreshToken = tokens.refresh_token || db.google.refreshToken;
+  writeDb(db);
+  return true;
+}
 
-router.get('/auth-url', requireAdmin, (req, res) => {
-  try {
-    res.json({ url: getAuthUrl() });
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
+async function getDriveClient() {
+  const db = readDb();
+  if (!db.google.refreshToken) throw new Error('Google Drive এখনো সংযুক্ত করা হয়নি — অ্যাডমিন প্যানেলের Drive ট্যাব থেকে কানেক্ট করো');
+  const oauth2Client = getOAuthClient();
+  oauth2Client.setCredentials({ refresh_token: db.google.refreshToken });
+  return google.drive({ version: 'v3', auth: oauth2Client });
+}
 
-// Google এই URL এ redirect করবে, তাই এটা public route (token ছাড়া) হতে হবে
-router.get('/oauth-callback', async (req, res) => {
-  try {
-    await handleOAuthCallback(req.query.code);
-    res.redirect(`${process.env.FRONTEND_URL}/#admin?drive=connected`);
-  } catch (e) {
-    res.redirect(`${process.env.FRONTEND_URL}/#admin?drive=error`);
-  }
-});
+export async function listDriveFiles() {
+  const drive = await getDriveClient();
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const q = folderId ? `'${folderId}' in parents and trashed=false` : `trashed=false and (mimeType contains 'image/' or mimeType='application/pdf')`;
+  const resp = await drive.files.list({
+    q,
+    fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,createdTime)',
+    pageSize: 100,
+    orderBy: 'createdTime desc'
+  });
+  return resp.data.files || [];
+}
 
-router.get('/files', requireAdmin, async (req, res) => {
-  try {
-    res.json(await listDriveFiles());
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
+export async function uploadToDrive(fileBuffer, filename, mimeType) {
+  const drive = await getDriveClient();
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const stream = Readable.from(fileBuffer);
+  const resp = await drive.files.create({
+    requestBody: { name: filename, parents: folderId ? [folderId] : undefined },
+    media: { mimeType, body: stream },
+    fields: 'id,name,mimeType,webViewLink'
+  });
+  const fileId = resp.data.id;
+  await drive.permissions.create({ fileId, requestBody: { role: 'reader', type: 'anyone' } });
+  const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+  return {
+    id: fileId,
+    name: resp.data.name,
+    url: directUrl,
+    viewLink: `https://drive.google.com/file/d/${fileId}/view`
+  };
+}
 
-router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'ফাইল পাওয়া যায়নি' });
-    const result = await uploadToDrive(req.file.buffer, req.file.originalname, req.file.mimetype);
-    res.json(result);
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
-
-router.delete('/files/:id', requireAdmin, async (req, res) => {
-  try {
-    await deleteFromDrive(req.params.id);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
-
-export default router;
+export async function deleteFromDrive(fileId) {
+  const drive = await getDriveClient();
+  await drive.files.delete({ fileId });
+}
